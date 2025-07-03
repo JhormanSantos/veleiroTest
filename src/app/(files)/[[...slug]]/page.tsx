@@ -1,31 +1,39 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Folder } from '@/types';
+import { Folder, File as FileType } from '@/types';
 import { fetcher } from '@/lib/fetcher';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
+import FileDropzone from '@/components/ui/FileDropzone';
 import Modal from '@/components/ui/Modal';
-import { FolderIcon } from '@heroicons/react/24/outline';
+import { FolderIcon, DocumentIcon } from '@heroicons/react/24/outline';
+import FileDetailPanel from '@/components/ui/FileDetailPanel';
 
 export default function FileManagerPage() {
   const params = useParams();
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
+  const [selectedFile, setSelectedFile] = useState<FileType | null>(null);
 
   const slug = params.slug as string[] | undefined;
   const parentId = slug ? Number(slug[slug.length - 1]) : null;
 
-  const apiKey = parentId ? `/api/folders?parentId=${parentId}` : '/api/folders';
-  const { 
-    data: folders, 
-    error, 
-    isLoading,
-    mutate
-  } = useSWR<Folder[]>(apiKey, fetcher);
+const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
+  const { data: folders, mutate: mutateFolders } = useSWR<Folder[]>(foldersApiKey, fetcher);
+
+  const filesApiKey = `/api/files?parentId=${parentId || ''}`;
+  const { data: files, error: filesError, isLoading: filesLoading, mutate: mutateFiles } = useSWR<FileType[]>(filesApiKey, fetcher);
+
+  const items = useMemo(() => {
+    const folderItems = folders?.map(f => ({ ...f, type: 'folder' as const })) || [];
+    const fileItems = files?.map(f => ({ ...f, type: 'file' as const })) || [];
+    return [...folderItems, ...fileItems];
+  }, [folders, files]);
 
   const handleCreateFolder = async (e: FormEvent) => {
     e.preventDefault();
@@ -33,7 +41,7 @@ export default function FileManagerPage() {
 
     const newFolderData = { name: newFolderName, parent_id: parentId };
 
-    mutate(
+    mutateFolders(
       (currentData = []) => [...currentData, { ...newFolderData, id: Date.now(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }],
       false
     );
@@ -45,7 +53,7 @@ export default function FileManagerPage() {
          body: JSON.stringify(newFolderData),
       });
 
-      mutate(
+      mutateFolders(
          (currentData = []) => currentData?.map(f => f.id === newFolder.id ? newFolder : f),
          false
       );
@@ -53,7 +61,7 @@ export default function FileManagerPage() {
     } catch (error) {
       console.error(error);
       alert('Error al crear la carpeta');
-      mutate(
+      mutateFolders(
         (currentData = []) => currentData?.filter(f => f.name !== newFolderName),
         false
       );
@@ -63,10 +71,51 @@ export default function FileManagerPage() {
     }
   };
 
-  if (error) return <div>Error al cargar los datos. Por favor, intenta de nuevo.</div>;
+  const handleUploadFiles = async () => {
+    if (filesToUpload.length === 0) return;
+
+    const parentId = slug ? Number(slug[slug.length - 1]) : null;
+
+    for (const file of filesToUpload) {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (parentId) {
+        formData.append('folderId', String(parentId));
+      }
+
+      try {
+        const response = await fetch('/api/files', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error al subir ${file.name}`);
+        }
+        
+        const newFileRecord = await response.json();
+        mutateFiles((currentFiles = []) => [...currentFiles, newFileRecord], false);
+
+        console.log('Archivo subido con éxito:', newFileRecord);
+        // Aquí es donde en el futuro actualizaremos la UI con el nuevo archivo
+        
+      } catch (error) {
+        console.error(error);
+        alert(`Falló la subida de ${file.name}`);
+      }
+    }
+
+    // Limpiar y cerrar el modal
+    setFilesToUpload([]);
+    setIsUploadModalOpen(false);
+  };
+
+  if (filesError) return <div>Error al cargar los datos. Por favor, intenta de nuevo.</div>;
+
+  const isLoading = filesLoading
 
   return (
-    <div className="flex h-screen">
+    <div className="relative flex h-screen bg-background text-primary">
       <aside className="hidden md:block w-64 bg-surface border-r border-border p-4">        
         <h1 className="text-lg font-bold">Mis Archivos</h1>
       </aside>
@@ -74,32 +123,55 @@ export default function FileManagerPage() {
       <main className="flex-1 p-8 overflow-y-auto">
         <header className="flex justify-between items-center mb-8">
           <Breadcrumbs slug={slug} />
-          <button 
-            onClick={() => setIsModalOpen(true)} 
-            className="bg-secondary text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
-          >
-            Nueva Carpeta
-          </button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button 
+              onClick={() => setIsUploadModalOpen(true)} // <-- Botón para modal de subida
+              className="flex-1 bg-white border border-border text-primary font-bold py-2 px-4 rounded-lg hover:bg-gray-50"
+            >
+              Subir Archivo
+            </button>
+            <button 
+              onClick={() => setIsModalOpen(true)} 
+              className="flex-1 bg-secondary text-white font-bold py-2 px-4 rounded-lg hover:opacity-90"
+            >
+              Nueva Carpeta
+            </button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {isLoading && <p>Cargando...</p>}
           
-          {folders?.map((folder) => {
-            const currentPath = slug || [];
-            const newPath = [...currentPath, folder.name, folder.id].join('/');
-            
-            return (
-              <Link href={`/${newPath}`} key={folder.id}>
-                <div className="flex flex-col items-center p-4 bg-surface rounded-lg border border-border hover:shadow-md hover:border-secondary cursor-pointer transition-all duration-200">
-                  <FolderIcon className="w-16 h-16 text-secondary" />
-                  <span className="mt-2 text-sm font-medium text-center truncate w-full">{folder.name}</span>
+          {items.map((item) => {
+            if (item.type === 'folder') {
+              const currentPath = slug || [];
+              const newPath = [...currentPath, item.name, item.id].join('/');
+              return (
+                <Link href={`/${newPath}`} key={`folder-${item.id}`}>
+                  <div className="flex flex-col ...">
+                    <FolderIcon className="w-16 h-16 text-secondary" />
+                    <span className="mt-2 ...">{item.name}</span>
+                  </div>
+                </Link>
+              );
+            } else { // item.type === 'file'
+              return (
+                <div 
+                  key={`file-${item.id}`} 
+                  onClick={() => setSelectedFile(item)} // <-- Hacerlo clicable
+                  className="flex flex-col items-center p-4 bg-surface rounded-lg border border-border cursor-pointer hover:shadow-md hover:border-secondary transition-all"
+                >
+                  <DocumentIcon className="w-16 h-16 text-gray-500" />
+                  <span className="mt-2 text-sm font-medium text-center truncate w-full">{item.name}</span>
+                  {item.processing_status === 'pending' && <span className="text-xs text-yellow-600">Procesando...</span>}
                 </div>
-              </Link>
-            );
+              );
+            }
           })}
         </div>
       </main>
+
+      {/* ... (Modal de Nueva Carpeta) ... */}
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Crear Nueva Carpeta">
         <form onSubmit={handleCreateFolder}>
@@ -133,6 +205,34 @@ export default function FileManagerPage() {
           </div>
         </form>
       </Modal>
+
+      {/* ... (Modal de Subir Archivos) ... */}
+      <Modal 
+        isOpen={isUploadModalOpen} 
+        onClose={() => setIsUploadModalOpen(false)} 
+        title="Subir Archivos"
+      >
+        <div className="flex flex-col gap-4">
+          <FileDropzone onFilesAccepted={setFilesToUpload} />
+          {filesToUpload.length > 0 && (
+            <div>
+              <h4 className="font-semibold">Archivos seleccionados:</h4>
+              <ul className="text-sm list-disc list-inside">
+                {filesToUpload.map(file => <li key={file.name}>{file.name}</li>)}
+              </ul>
+            </div>
+          )}
+          <button
+            onClick={handleUploadFiles}
+            disabled={filesToUpload.length === 0}
+            className="w-full bg-secondary text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 disabled:opacity-50"
+          >
+            Subir {filesToUpload.length} archivo(s)
+          </button>
+        </div>
+      </Modal>
+      <FileDetailPanel file={selectedFile} onClose={() => setSelectedFile(null)} />
+
     </div>
   );
 }

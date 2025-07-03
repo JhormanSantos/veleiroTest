@@ -11,10 +11,13 @@
   "dependencies": {
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
+    "@types/formidable": "^3.4.5",
+    "formidable": "^3.5.4",
     "mysql2": "^3.14.1",
     "next": "15.3.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-dropzone": "^14.3.8",
     "swr": "^2.3.4"
   },
   "devDependencies": {

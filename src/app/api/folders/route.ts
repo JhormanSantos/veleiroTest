@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, parentId = null } = body;
+    const { name, parent_id:parentId = null } = body;
 
     if (!name) {
       return NextResponse.json({ message: 'El nombre es requerido' }, { status: 400 });
