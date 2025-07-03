@@ -1,4 +1,4 @@
-
+// tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -8,16 +8,14 @@ module.exports = {
   ],
   theme: {
     extend: {
-      // Aquí agregaremos los colores y tipografía de veleiro.ai
       colors: {
-        // Ejemplo:
-        // 'veleiro-blue': '#001a70',
-        // 'veleiro-gray': '#f0f2f5',
-      },
-      fontFamily: {
-        // sans: ['TuFuente', 'sans-serif'], // Ejemplo
+        'primary': '#0F172A',     // Azul oscuro casi negro para texto y elementos principales
+        'secondary': '#4F46E5',   // Púrpura/Índigo para acentos y botones
+        'background': '#F8FAFC', // Gris muy claro para el fondo principal
+        'surface': '#FFFFFF',    // Blanco para tarjetas y superficies elevadas
+        'border': '#E2E8F0',     // Gris claro para bordes y separadores
       },
     },
   },
   plugins: [],
-}
+};

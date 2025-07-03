@@ -1,5 +1,5 @@
 // src/app/api/folders/route.ts
-import { folderService } from '@/services/folder-service';
+import { folderService } from '@/lib/services/folder-service';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
