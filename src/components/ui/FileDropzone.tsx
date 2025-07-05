@@ -16,10 +16,14 @@ export default function FileDropzone({ onFilesAccepted }: FileDropzoneProps) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { // Define los tipos de archivo aceptados según los requisitos
-      'text/plain': ['.txt'],
       'application/pdf': ['.pdf'],
-      'text/csv': ['.csv'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/tiff': ['.tif', '.tiff'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'text/html': ['.html', '.htm'],
     },
   });
 
@@ -36,7 +40,7 @@ export default function FileDropzone({ onFilesAccepted }: FileDropzoneProps) {
       ) : (
         <p className="mt-2 text-gray-500">Arrastra y suelta archivos aquí, o haz clic para seleccionar</p>
       )}
-      <p className="text-xs text-gray-400 mt-1">Soporta .txt, .pdf, .csv, .xlsx</p>
+      <p className="text-xs text-gray-400 mt-1">Soporta PDF, DOCX, PPTX, XLSX, HTML e imágenes (JPG, PNG, TIFF)</p>
     </div>
   );
 }

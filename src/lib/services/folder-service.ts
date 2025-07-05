@@ -3,6 +3,11 @@ import pool from '@/lib/db';
 import { Folder } from '@/types';
 import { RowDataPacket } from 'mysql2';
 
+export interface FolderTreeNode extends Folder {
+  children: FolderTreeNode[];
+}
+
+
 // Un objeto que agrupa todas las funciones del servicio de carpetas
 export const folderService = {
   /**
@@ -38,5 +43,31 @@ export const folderService = {
     const [newFolder] = await pool.query<RowDataPacket[]>('SELECT * FROM folders WHERE id = ?', [insertId]);
     
     return newFolder[0] as Folder;
+  },
+
+  async getTree(): Promise<FolderTreeNode[]> {
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM folders ORDER BY name ASC');
+    const folders = rows as Folder[];
+    
+    const folderMap = new Map<number, FolderTreeNode>();
+    const tree: FolderTreeNode[] = [];
+
+    // Primer paso: Inicializar cada carpeta en el mapa
+    folders.forEach(folder => {
+      folderMap.set(folder.id, { ...folder, children: [] });
+    });
+
+    // Segundo paso: Construir el árbol
+    folders.forEach(folder => {
+      const node = folderMap.get(folder.id)!;
+      if (folder.parent_id) {
+        const parent = folderMap.get(folder.parent_id);
+        parent?.children.push(node);
+      } else {
+        tree.push(node);
+      }
+    });
+
+    return tree;
   },
 };

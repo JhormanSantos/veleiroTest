@@ -11,6 +11,9 @@ import FileDropzone from '@/components/ui/FileDropzone';
 import Modal from '@/components/ui/Modal';
 import { FolderIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import FileDetailPanel from '@/components/ui/FileDetailPanel';
+import EditorModal from '@/components/ui/EditorModal';
+import { FolderTreeNode } from '@/lib/services/folder-service'; // Importar el tipo
+import FolderTree from '@/components/layout/FolderTree';
 
 export default function FileManagerPage() {
   const params = useParams();
@@ -19,6 +22,7 @@ export default function FileManagerPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileType | null>(null);
+  const [editingFile, setEditingFile] = useState<FileType | null>(null);
 
   const slug = params.slug as string[] | undefined;
   const parentId = slug ? Number(slug[slug.length - 1]) : null;
@@ -28,6 +32,9 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
 
   const filesApiKey = `/api/files?parentId=${parentId || ''}`;
   const { data: files, error: filesError, isLoading: filesLoading, mutate: mutateFiles } = useSWR<FileType[]>(filesApiKey, fetcher);
+
+    const { data: folderTree } = useSWR<FolderTreeNode[]>('/api/folders/tree', fetcher);
+
 
   const items = useMemo(() => {
     const folderItems = folders?.map(f => ({ ...f, type: 'folder' as const })) || [];
@@ -118,6 +125,7 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
     <div className="relative flex h-screen bg-background text-primary">
       <aside className="hidden md:block w-64 bg-surface border-r border-border p-4">        
         <h1 className="text-lg font-bold">Mis Archivos</h1>
+        {folderTree && <FolderTree nodes={folderTree} />}
       </aside>
 
       <main className="flex-1 p-8 overflow-y-auto">
@@ -155,10 +163,11 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
                 </Link>
               );
             } else { // item.type === 'file'
+              const isEditable = item.mime_type.startsWith('text/');
               return (
                 <div 
                   key={`file-${item.id}`} 
-                  onClick={() => setSelectedFile(item)} // <-- Hacerlo clicable
+                  onClick={() => setSelectedFile(item)}// <-- Hacerlo clicable
                   className="flex flex-col items-center p-4 bg-surface rounded-lg border border-border cursor-pointer hover:shadow-md hover:border-secondary transition-all"
                 >
                   <DocumentIcon className="w-16 h-16 text-gray-500" />
@@ -231,8 +240,14 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
           </button>
         </div>
       </Modal>
-      <FileDetailPanel file={selectedFile} onClose={() => setSelectedFile(null)} />
-
+      <FileDetailPanel 
+        file={selectedFile} 
+        onClose={() => setSelectedFile(null)} 
+        onEdit={(fileToEdit) => {
+        setSelectedFile(null); // Cerramos el panel de detalles
+        setEditingFile(fileToEdit); // Abrimos el modal de edición
+  }}/>
+      <EditorModal file={editingFile} onClose={() => setEditingFile(null)} />
     </div>
   );
 }

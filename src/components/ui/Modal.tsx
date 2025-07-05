@@ -9,9 +9,14 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  size?: 'md' | '4xl'; // <-- Nueva prop de tamaño
 }
 
-export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+  const sizeClasses = {
+    md: 'max-w-md',
+    '4xl': 'max-w-4xl',
+  };
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={onClose}>
@@ -39,7 +44,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-surface p-6 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className={`w-full ${sizeClasses[size]} transform overflow-hidden rounded-2xl bg-surface p-6 text-left align-middle shadow-xl transition-all`}>
                 <Dialog.Title
                   as="h3"
                   className="text-lg font-medium leading-6 text-primary"

@@ -1,18 +1,10 @@
 // src/app/api/files/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import formidable from 'formidable';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileService } from '@/lib/services/file-service';
 import { pulseService } from '@/lib/services/pulse-service';
 
-// Deshabilitamos el bodyParser por defecto de Next.js
-// para que formidable pueda procesar el stream del archivo.
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -46,28 +38,42 @@ export async function POST(req: NextRequest) {
     await fs.mkdir(uploadsDir, { recursive: true }); // Asegurarse de que el directorio exista
     await fs.writeFile(filePath, buffer);
 
-    // 2. Crear el registro en la base de datos
+    // 2. Crear el registro inicial en la base de datos
     const newFileRecord = await fileService.create({
       name: file.name,
-      storage_key: uniqueFilename, // Guardamos solo el nombre único del archivo
+      storage_key: uniqueFilename,
       mime_type: file.type,
       size_bytes: file.size,
       folder_id: folderId ? parseInt(folderId) : null,
     });
 
-    const pulseData = await pulseService.processFile(filePath);
+    // 3. Llamamos a Pulse con los argumentos requeridos: filePath, nombre y tipo del archivo.
+    const pulseData = await pulseService.processFile(
+      filePath,
+      file.name,
+      file.type
+    );
 
     // 4. Actualizar la BD con los metadatos de Pulse
     await fileService.updateWithPulseData(newFileRecord.id, pulseData);
     
-    // Opcional: Obtener el registro actualizado para devolverlo al frontend
-    const finalFileRecord = { ...newFileRecord, ...pulseData.analysis, processing_status: 'completed' };
+    // 5. Construir el registro final para devolverlo al frontend
+    // Esto asegura que el cliente reciba el estado 'completed' y los metadatos.
+    const finalFileRecord = { 
+      ...newFileRecord, 
+      processing_status: 'completed',
+      pulse_language: pulseData.analysis?.language,
+      pulse_line_count: pulseData.analysis?.line_count,
+      pulse_named_entities: pulseData.analysis?.named_entities,
+      pulse_raw_metadata: pulseData,
+    };
 
-    // 5. Responder al frontend con el registro completo y actualizado
+    // 6. Responder al frontend con el registro completo y actualizado
     return NextResponse.json(finalFileRecord, { status: 201 });
 
   } catch (error) {
-    console.error('Error en la subida de archivo:', error);
-    return NextResponse.json({ message: 'Error al guardar el archivo.' }, { status: 500 });
+    console.error('Error en la subida y procesamiento de archivo:', error);
+    // Opcional: Aquí podrías querer actualizar el estado del archivo a 'failed' en la BD.
+    return NextResponse.json({ message: 'Error al procesar el archivo.' }, { status: 500 });
   }
 }

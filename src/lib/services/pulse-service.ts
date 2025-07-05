@@ -1,29 +1,34 @@
-import { createReadStream } from 'fs';
+// src/lib/services/pulse-service.ts
+
+import { promises as fs } from 'fs';
+// No importes Blob desde 'buffer'. Usaremos la global.
 
 const PULSE_API_URL = 'https://pro.api.runpulse.com/extract_beta';
-const PULSE_API_KEY = process.env.PULSE_API_KEY;
 
 export const pulseService = {
   /**
    * Envía un archivo a la API de Pulse para su procesamiento.
-   * @param filePath - La ruta completa al archivo en nuestro servidor (ej. /path/to/uploads/file.pdf)
-   * @returns Los metadatos extraídos por la API.
    */
-  async processFile(filePath: string): Promise<any> {
+  async processFile(filePath: string, originalFilename: string, mimeType: string): Promise<any> {
+    const PULSE_API_KEY = process.env.PULSE_API_KEY;
     if (!PULSE_API_KEY) {
       throw new Error('La API Key de Pulse no está configurada.');
     }
 
     try {
-      const fileStream = createReadStream(filePath);
+      const fileBuffer = await fs.readFile(filePath);
+      
+      const fileBlob = new Blob([fileBuffer], { type: mimeType });
+      
+      const formData = new FormData();
+      formData.append('file', fileBlob, originalFilename);
 
       const response = await fetch(PULSE_API_URL, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${PULSE_API_KEY}`,
+          'x-api-key': PULSE_API_KEY,
         },
-        body: fileStream as any,
-        duplex: 'half',
+        body: formData,
       });
 
       if (!response.ok) {
@@ -32,8 +37,11 @@ export const pulseService = {
         throw new Error(`Error de Pulse API: ${response.status} ${response.statusText}`);
       }
 
-      return await response.json();
+      const pulseDataResponse = await response.json();
+      console.log('RESPUESTA COMPLETA DE PULSE:', JSON.stringify(pulseDataResponse, null, 2));
+      return pulseDataResponse;
 
+      return await response.json();
     } catch (error) {
       console.error('Falló la comunicación con Pulse API:', error);
       throw error;

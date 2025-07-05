@@ -1,7 +1,8 @@
 import pool from '@/lib/db';
 import { File } from '@/types';
 import { RowDataPacket } from 'mysql2';
-
+import path from 'path';
+import { promises as fs } from 'fs';
 interface CreateFilePayload {
   name: string;
   storage_key: string;
@@ -9,6 +10,8 @@ interface CreateFilePayload {
   size_bytes: number;
   folder_id: number | null;
 }
+
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 
 export const fileService = {
   async create(payload: CreateFilePayload): Promise<File> {
@@ -38,8 +41,14 @@ export const fileService = {
     return rows as File[];
   },
 
-  async updateWithPulseData(fileId: number, pulseData: any): Promise<void> {
-    const { language, line_count, named_entities } = pulseData.analysis;
+async updateWithPulseData(fileId: number, pulseData: any): Promise<void> {
+    // La API no devuelve 'language' ni 'named_entities' para este endpoint.
+    // Pero SÍ podemos calcular el conteo de líneas desde el campo 'markdown'.
+    const line_count = pulseData?.markdown ? pulseData.markdown.split('\n').length : 0;
+    
+    // Los otros campos los dejaremos como nulos ya que no vienen en la respuesta.
+    const language = null;
+    const named_entities = null;
 
     const sql = `
       UPDATE files
@@ -52,15 +61,34 @@ export const fileService = {
       WHERE id = ?
     `;
 
-    // Guardamos las entidades y los metadatos crudos como strings JSON
     const params = [
       language,
       line_count,
-      JSON.stringify(named_entities),
-      JSON.stringify(pulseData),
+      named_entities,
+      pulseData ? JSON.stringify(pulseData) : null, // Guardamos la respuesta completa
       fileId
     ];
 
     await pool.query(sql, params);
+  },
+
+  /**
+   * Lee el contenido de un archivo desde el disco.
+   * @param storageKey - El nombre único del archivo en la carpeta 'uploads'.
+   * @returns El contenido del archivo como un string.
+   */
+  async getContent(storageKey: string): Promise<string> {
+    const filePath = path.join(UPLOADS_DIR, storageKey);
+    return fs.readFile(filePath, 'utf-8');
+  },
+
+  /**
+   * Sobrescribe el contenido de un archivo en el disco.
+   * @param storageKey - El nombre único del archivo.
+   * @param newContent - El nuevo contenido para guardar.
+   */
+  async updateContent(storageKey: string, newContent: string): Promise<void> {
+    const filePath = path.join(UPLOADS_DIR, storageKey);
+    await fs.writeFile(filePath, newContent, 'utf-8');
   },
 };
