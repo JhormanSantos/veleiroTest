@@ -10,7 +10,7 @@ module.exports = {
     extend: {
       colors: {
         'primary': '#0F172A',     // Azul oscuro casi negro para texto y elementos principales
-        'secondary': '#4F46E5',   // Púrpura/Índigo para acentos y botones
+        'secondary': '#3c82f7',   //
         'background': '#F8FAFC', // Gris muy claro para el fondo principal
         'surface': '#FFFFFF',    // Blanco para tarjetas y superficies elevadas
         'border': '#E2E8F0',     // Gris claro para bordes y separadores

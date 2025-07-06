@@ -103,9 +103,7 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
         const newFileRecord = await response.json();
         mutateFiles((currentFiles = []) => [...currentFiles, newFileRecord], false);
 
-        console.log('Archivo subido con éxito:', newFileRecord);
-        // Aquí es donde en el futuro actualizaremos la UI con el nuevo archivo
-        
+        console.log('Archivo subido con éxito:', newFileRecord);        
       } catch (error) {
         console.error(error);
         alert(`Falló la subida de ${file.name}`);
@@ -156,7 +154,7 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
               const newPath = [...currentPath, item.name, item.id].join('/');
               return (
                 <Link href={`/${newPath}`} key={`folder-${item.id}`}>
-                  <div className="flex flex-col ...">
+                  <div className="flex flex-col items-center p-4 bg-surface rounded-lg border border-border cursor-pointer hover:shadow-md hover:border-secondary transition-all">
                     <FolderIcon className="w-16 h-16 text-secondary" />
                     <span className="mt-2 ...">{item.name}</span>
                   </div>

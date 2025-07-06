@@ -1,9 +1,11 @@
 // src/components/ui/FileDetailPanel.tsx
 'use client';
-import { XMarkIcon, PencilSquareIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PencilSquareIcon, ArrowPathIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid';
 import { File as FileType } from '@/types';
 import { fetcher } from '@/lib/fetcher'; // <-- Importar fetcher
 import { useState } from 'react';
+import Modal from './Modal'; 
+
 
 
 interface FileDetailPanelProps {
@@ -15,6 +17,9 @@ interface FileDetailPanelProps {
 export default function FileDetailPanel({ file, onClose, onEdit }: FileDetailPanelProps) {
 
   const [isReprocessing, setIsReprocessing] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  
 
   // Si no hay archivo, no renderizamos nada.
   if (!file) return null;
@@ -32,20 +37,18 @@ export default function FileDetailPanel({ file, onClose, onEdit }: FileDetailPan
     setIsReprocessing(true);
     try {
       await fetcher(`/api/files/${file.id}/reprocess`, { method: 'POST' });
-      alert('Archivo enviado a reprocesar. Los datos se actualizarán en breve.');
-      // SWR revalidará automáticamente los datos en segundo plano.
-      // Podríamos forzarlo con mutate, pero por ahora lo dejamos así.
+      setShowSuccessModal(true); // <-- Reemplaza alert de éxito
     } catch (error) {
-      alert('Error al reprocesar el archivo.');
+      setShowErrorModal(true); // <-- Reemplaza alert de error
     } finally {
       setIsReprocessing(false);
     }
-  };
+};
 
   const isEditable = file.mime_type.startsWith('text/');
 
   return (
-    // Panel que se superpone
+    <>
     <aside className="absolute top-0 right-0 h-full w-full max-w-sm bg-surface border-l border-border shadow-lg z-20 transform transition-transform duration-300 ease-in-out">
       <div className="p-6">
         <div className="flex justify-between items-center mb-4">
@@ -98,5 +101,45 @@ export default function FileDetailPanel({ file, onClose, onEdit }: FileDetailPan
         </div>
       </div>
     </aside>
+
+    <Modal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="Petición Enviada"
+      >
+        <div className="text-center">
+          <CheckCircleIcon className="mx-auto h-12 w-12 text-green-500" />
+          <p className="mt-2">
+            El archivo ha sido enviado a reprocesar. Los datos se actualizarán en breve.
+          </p>
+          <button
+            onClick={() => setShowSuccessModal(false)}
+            className="mt-4 bg-secondary text-white font-bold py-2 px-4 rounded-lg"
+          >
+            Aceptar
+          </button>
+        </div>
+      </Modal>
+
+      {/* MODAL DE ERROR */}
+      <Modal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="Error"
+      >
+        <div className="text-center">
+          <ExclamationCircleIcon className="mx-auto h-12 w-12 text-red-500" />
+          <p className="mt-2">
+            Ocurrió un error al intentar reprocesar el archivo. Por favor, inténtalo de nuevo.
+          </p>
+          <button
+            onClick={() => setShowErrorModal(false)}
+            className="mt-4 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
+          >
+            Cerrar
+          </button>
+        </div>
+      </Modal>
+    </>
   );
 }
