@@ -84,7 +84,7 @@ export default function FileDetailPanel({ item, onClose, onEdit, onDelete }: Fil
             </button>
           )}
           {item.type === 'file' && isEditable && (
-            <button onClick={() => onEdit(item as FileType)} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium">
+            <button onClick={() => onEdit(item as FileType)} className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium">
               <PencilSquareIcon className="w-5 h-5" />
               Editar
             </button>
