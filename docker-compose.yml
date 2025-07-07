@@ -14,5 +14,21 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
 
+  app:
+    build:
+      context: .
+      args:
+        DATABASE_URL: "mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}"
+        PULSE_API_KEY: ${PULSE_API_KEY}
+    container_name: file-intake-app
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      PULSE_API_KEY: ${PULSE_API_KEY}
+      DATABASE_URL: "mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}"
+
 volumes:
   mysql-data:

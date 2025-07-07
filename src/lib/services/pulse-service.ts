@@ -1,7 +1,6 @@
-// src/lib/services/pulse-service.ts
 
 import { promises as fs } from 'fs';
-// No importes Blob desde 'buffer'. Usaremos la global.
+import { PulseApiResponse } from '@/types';
 
 const PULSE_API_URL = 'https://pro.api.runpulse.com/extract_beta';
 
@@ -9,7 +8,7 @@ export const pulseService = {
   /**
    * Envía un archivo a la API de Pulse para su procesamiento.
    */
-  async processFile(filePath: string, originalFilename: string, mimeType: string): Promise<any> {
+  async processFile(filePath: string, originalFilename: string, mimeType: string): Promise<PulseApiResponse> {
     const PULSE_API_KEY = process.env.PULSE_API_KEY;
     if (!PULSE_API_KEY) {
       throw new Error('La API Key de Pulse no está configurada.');

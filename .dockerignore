@@ -1,0 +1,6 @@
+node_modules
+.next
+.env
+README.md
+docker-compose.yml
+Dockerfile

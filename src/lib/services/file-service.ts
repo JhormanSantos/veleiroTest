@@ -1,8 +1,10 @@
 import pool from '@/lib/db';
-import { File } from '@/types';
-import { RowDataPacket } from 'mysql2';
+import { File, PulseApiResponse } from '@/types';
+import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import path from 'path';
 import { promises as fs } from 'fs';
+
+
 interface CreateFilePayload {
   name: string;
   storage_key: string;
@@ -21,7 +23,7 @@ export const fileService = {
       VALUES (?, ?, ?, ?, ?)
     `;
     const [result] = await pool.query(sql, [name, storage_key, mime_type, size_bytes, folder_id]);
-    const insertId = (result as any).insertId;
+    const insertId = (result as ResultSetHeader).insertId;
 
     const [newFile] = await pool.query<RowDataPacket[]>('SELECT * FROM files WHERE id = ?', [insertId]);
     return newFile[0] as File;
@@ -41,7 +43,7 @@ export const fileService = {
     return rows as File[];
   },
 
-async updateWithPulseData(fileId: number, pulseData: any): Promise<void> {
+async updateWithPulseData(fileId: number, pulseData: PulseApiResponse): Promise<void> {
     // La API no devuelve 'language' ni 'named_entities' para este endpoint.
     // Pero SÍ podemos calcular el conteo de líneas desde el campo 'markdown'.
     const line_count = pulseData?.markdown ? pulseData.markdown.split('\n').length : 0;
@@ -90,5 +92,20 @@ async updateWithPulseData(fileId: number, pulseData: any): Promise<void> {
   async updateContent(storageKey: string, newContent: string): Promise<void> {
     const filePath = path.join(UPLOADS_DIR, storageKey);
     await fs.writeFile(filePath, newContent, 'utf-8');
+  },
+
+  async delete(fileId: number): Promise<void> {
+    // Primero, obtenemos el 'storage_key' para saber qué archivo borrar del disco
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT storage_key FROM files WHERE id = ?', [fileId]);
+    if (rows.length > 0) {
+      const storageKey = rows[0].storage_key;
+      const filePath = path.join(UPLOADS_DIR, storageKey);
+      
+      // Borramos el archivo físico del disco
+      await fs.unlink(filePath).catch(err => console.error(`No se pudo borrar el archivo del disco: ${err.message}`));
+    }
+
+    // Finalmente, borramos el registro de la base de datos
+    await pool.query('DELETE FROM files WHERE id = ?', [fileId]);
   },
 };

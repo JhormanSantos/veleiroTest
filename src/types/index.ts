@@ -1,3 +1,9 @@
+export interface RawMetadata {
+  is_url: boolean;
+  markdown: string;
+}
+
+
 export interface Folder {
   id: number;
   name: string;
@@ -14,10 +20,16 @@ export interface File {
   size_bytes: number;
   folder_id: number | null;
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
-  pulse_language?: string;
-  pulse_line_count?: number;
-  pulse_named_entities?: any;
-  pulse_raw_metadata?: any;
+  pulse_language?: string | null;
+  pulse_line_count?: number | null;
+  pulse_named_entities?: string | null;
+  pulse_raw_metadata?: RawMetadata | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PulseApiResponse {
+  markdown?: string;
+  'plan-info'?: object;
+  
 }

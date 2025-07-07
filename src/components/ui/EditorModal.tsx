@@ -30,7 +30,7 @@ export default function EditorModal({ file, onClose }: EditorModalProps) {
   const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
   const [showSaveErrorModal, setShowSaveErrorModal] = useState(false);
   const apiKey = file ? `/api/files/${file.id}/content` : null;
-  const { data, error, isLoading } = useSWR(apiKey, fetcher);
+   const { data, error, isLoading } = useSWR<{ content: string }>(apiKey, fetcher);
 
   useEffect(() => {
     if (data?.content) {
@@ -50,9 +50,9 @@ export default function EditorModal({ file, onClose }: EditorModalProps) {
       });
       setShowSaveSuccessModal(true);
       onClose();
-    } catch (err) {
-      alert('Error al guardar.');
+    } catch (error) {
       setShowSaveErrorModal(true);
+      console.log(error)
     }
   };
   const handleCloseSuccessModal = () => {

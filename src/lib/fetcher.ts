@@ -7,24 +7,36 @@
  * @param options - (Opcional) Un objeto de configuración para fetch (method, headers, body, etc.).
  * @returns Los datos en formato JSON.
  */
-export const fetcher = async (url: string, options?: RequestInit) => {
-  const res = await fetch(url, options); // Se pasan las opciones a fetch
+
+class ApiError extends Error {
+  info: unknown;
+  status: number;
+
+  constructor(message: string, info: unknown, status: number) {
+    super(message);
+    this.info = info;
+    this.status = status;
+  }
+}
+
+
+export const fetcher = async <T = unknown>(url: string, options?: RequestInit): Promise<T> => {
+  const res = await fetch(url, options);
 
   if (!res.ok) {
-    const error = new Error('Ocurrió un error en la petición a la API.');
+    let errorInfo: unknown;
     try {
-      (error as any).info = await res.json();
-    } catch (e) {
-      // Si la respuesta de error no es JSON
-      (error as any).info = { message: 'La respuesta del servidor no es un JSON válido.' };
+      errorInfo = await res.json();
+    } catch (_e) {
+      errorInfo = { message: `La respuesta del servidor no es un JSON válido  ${_e}. `};
     }
-    (error as any).status = res.status;
-    throw error;
+    // Lanzamos nuestra clase de error personalizada
+    throw new ApiError('Ocurrió un error en la petición a la API.', errorInfo, res.status);
   }
 
-  // Si la petición es un DELETE o alguna otra que no devuelve contenido
   if (res.status === 204) {
-    return null;
+    // Devolvemos null pero lo casteamos a T para satisfacer a TypeScript
+    return null as T;
   }
 
   return res.json();

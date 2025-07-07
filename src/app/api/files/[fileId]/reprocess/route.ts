@@ -59,8 +59,8 @@ export async function POST(
     // 4. Devolver una respuesta exitosa
     return NextResponse.json({ message: `Archivo ${fileId} reprocesado con éxito.` });
 
-  } catch (error) {
-    console.error(`Error al reprocesar el archivo ${fileId}:`, error);
+  } catch (_error) {
+    console.error(`Error al reprocesar el archivo ${fileId}:`, _error);
     return NextResponse.json({ message: 'Error al reprocesar el archivo.' }, { status: 500 });
   }
 }

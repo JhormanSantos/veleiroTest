@@ -3,7 +3,6 @@
 import { useState, FormEvent, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import useSWR from 'swr';
-import Link from 'next/link';
 import { Folder, File as FileType } from '@/types';
 import { fetcher } from '@/lib/fetcher';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
@@ -14,6 +13,7 @@ import FileDetailPanel from '@/components/ui/FileDetailPanel';
 import EditorModal from '@/components/ui/EditorModal';
 import { FolderTreeNode } from '@/lib/services/folder-service'; // Importar el tipo
 import FolderTree from '@/components/layout/FolderTree';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 export default function FileManagerPage() {
   const params = useParams();
@@ -21,8 +21,10 @@ export default function FileManagerPage() {
   const [newFolderName, setNewFolderName] = useState('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
-  const [selectedFile, setSelectedFile] = useState<FileType | null>(null);
+  const [selectedItem, setSelectedItem] = useState<(FileType | Folder) & { type: 'file' | 'folder' } | null>(null);
   const [editingFile, setEditingFile] = useState<FileType | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; type: 'file' | 'folder' } | null>(null);
+
 
   const slug = params.slug as string[] | undefined;
   const parentId = slug ? Number(slug[slug.length - 1]) : null;
@@ -42,6 +44,7 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
     return [...folderItems, ...fileItems];
   }, [folders, files]);
 
+
   const handleCreateFolder = async (e: FormEvent) => {
     e.preventDefault();
     if (!newFolderName.trim()) return;
@@ -54,7 +57,7 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
     );
 
     try {
-      const newFolder = await fetcher('/api/folders', {
+      const newFolder = await fetcher<Folder>('/api/folders', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify(newFolderData),
@@ -115,6 +118,25 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
     setIsUploadModalOpen(false);
   };
 
+  const handleDelete = async () => {
+    if (!itemToDelete) return;
+
+    try {
+      if (itemToDelete.type === 'folder') {
+        await fetcher(`/api/folders/${itemToDelete.id}`, { method: 'DELETE' });
+        mutateFolders((current = []) => current.filter(f => f.id !== itemToDelete.id));
+      } else {
+        await fetcher(`/api/files/${itemToDelete.id}`, { method: 'DELETE' });
+        mutateFiles((current = []) => current.filter(f => f.id !== itemToDelete.id));
+      }
+    } catch (error) {
+      alert('Error al eliminar el item.');
+      console.log(error)
+    } finally {
+      setItemToDelete(null); // Cierra el modal
+    }
+  };
+
   if (filesError) return <div>Error al cargar los datos. Por favor, intenta de nuevo.</div>;
 
   const isLoading = filesLoading
@@ -150,22 +172,21 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
           
           {items.map((item) => {
             if (item.type === 'folder') {
-              const currentPath = slug || [];
-              const newPath = [...currentPath, item.name, item.id].join('/');
               return (
-                <Link href={`/${newPath}`} key={`folder-${item.id}`}>
-                  <div className="flex flex-col items-center p-4 bg-surface rounded-lg border border-border cursor-pointer hover:shadow-md hover:border-secondary transition-all">
-                    <FolderIcon className="w-16 h-16 text-secondary" />
-                    <span className="mt-2 ...">{item.name}</span>
-                  </div>
-                </Link>
+                <div
+                  key={`folder-${item.id}`}
+                  onClick={() => setSelectedItem(item)}
+                  className="flex flex-col items-center p-4 bg-surface rounded-lg border border-border cursor-pointer hover:shadow-md hover:border-secondary transition-all"
+                >
+                  <FolderIcon className="w-16 h-16 text-secondary" />
+                  <span className="mt-2 text-sm font-medium text-center truncate w-full">{item.name}</span>
+                </div>
               );
-            } else { // item.type === 'file'
-              const isEditable = item.mime_type.startsWith('text/');
+            } else {
               return (
                 <div 
                   key={`file-${item.id}`} 
-                  onClick={() => setSelectedFile(item)}// <-- Hacerlo clicable
+                  onClick={() => setSelectedItem(item)} // <-- onClick ahora usa setSelectedItem
                   className="flex flex-col items-center p-4 bg-surface rounded-lg border border-border cursor-pointer hover:shadow-md hover:border-secondary transition-all"
                 >
                   <DocumentIcon className="w-16 h-16 text-gray-500" />
@@ -239,13 +260,24 @@ const foldersApiKey = `/api/folders?parentId=${parentId || ''}`;
         </div>
       </Modal>
       <FileDetailPanel 
-        file={selectedFile} 
-        onClose={() => setSelectedFile(null)} 
+        item={selectedItem} 
+        onClose={() => setSelectedItem(null)}
         onEdit={(fileToEdit) => {
-        setSelectedFile(null); // Cerramos el panel de detalles
+        setSelectedItem(null); // Cerramos el panel de detalles
         setEditingFile(fileToEdit); // Abrimos el modal de edición
-  }}/>
+        }}
+        onDelete={setItemToDelete}
+      />
       <EditorModal file={editingFile} onClose={() => setEditingFile(null)} />
+
+     {/* MODAL DE CONFIRMACIÓN */}
+      <ConfirmationModal
+        isOpen={!!itemToDelete}
+        title="Confirmar Eliminación"
+        message="¿Estás seguro de que quieres eliminar este item? Esta acción no se puede deshacer."
+        onConfirm={handleDelete}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 }

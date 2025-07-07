@@ -6,6 +6,9 @@ import { fileService } from '@/lib/services/file-service';
 import { pulseService } from '@/lib/services/pulse-service';
 
 
+
+
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const folderId = searchParams.get('parentId');
@@ -18,6 +21,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: 'Error al obtener archivos.' }, { status: 500 });
   }
 }
+
+
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -59,12 +64,16 @@ export async function POST(req: NextRequest) {
     
     // 5. Construir el registro final para devolverlo al frontend
     // Esto asegura que el cliente reciba el estado 'completed' y los metadatos.
+
+    const line_count = pulseData?.markdown ? pulseData.markdown.split('\n').length : 0;
+
+
     const finalFileRecord = { 
       ...newFileRecord, 
       processing_status: 'completed',
-      pulse_language: pulseData.analysis?.language,
-      pulse_line_count: pulseData.analysis?.line_count,
-      pulse_named_entities: pulseData.analysis?.named_entities,
+      pulse_language: null,
+      pulse_line_count: line_count,
+      pulse_named_entities: null,
       pulse_raw_metadata: pulseData,
     };
 
